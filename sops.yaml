@@ -1,0 +1,242 @@
+# ==============================================================================
+# STANDARD OPERATING PROCEDURES (SOPs) - WEATHER ADVISORY POLICIES
+# ==============================================================================
+# All policy decisions are stored here as declarative data, NOT in code.
+# The LangGraph agent matches, ranks, and cites these policies deterministically.
+#
+# Schema:
+#   id: Unique policy ID (e.g., SOP-001, SOP-SYSTEM-RAIN)
+#   title: Short descriptive name
+#   category: outdoor_exercise | travel | vulnerable_groups | general_outdoor
+#   severity: 1 (info) | 2 (caution) | 3 (warning) | 4 (danger)
+#   type: numeric | fuzzy
+#   applies_to: list of activity tags (e.g., cycling, running, picnic, travel, any)
+#   condition: AST-evaluated boolean expression over weather facts (for numeric)
+#   time_window: optional [start_hour, end_hour] in 24h format (e.g. [11, 16])
+#   fuzzy_description: plain-language scenario (for fuzzy)
+#   soft_conditions: list of deterministic conditions (for fuzzy)
+#   advice: fixed approved advice template with {placeholders} for weather values
+#   rationale: clinical / physical reason why this policy exists
+#   scope: optional 'global' to evaluate across every outdoor activity
+#   overrides_category: optional true to lead before activity-specific rules
+# ==============================================================================
+
+- id: "SOP-SYSTEM-RAIN"
+  title: "Organised Heavy Rain System / Cyclonic Circulation Advisory"
+  category: "general_outdoor"
+  severity: 4
+  type: "numeric"
+  scope: "global"
+  overrides_category: true
+  applies_to:
+    - "any"
+  condition: "daily_precipitation_sum >= 64.5 or (precipitation_probability_max >= 80 and daily_precipitation_sum >= 35) or (weather_code in [65, 82, 95, 96, 99] and pressure_msl < 1000)"
+  advice: "CRITICAL REGIONAL RAIN ALERT: An organised heavy-to-very-heavy rain system is active over your area (forecast daily rainfall: {daily_precipitation_sum} mm, rain probability: {precipitation_probability_max}%, surface pressure: {pressure_msl} hPa). Flash flooding, severe waterlogging, and transport standstills are expected. All non-emergency outdoor movement should be cancelled immediately. Stay indoors in secure structures and monitor state disaster management warnings. Policy: SOP-SYSTEM-RAIN."
+  rationale: "Data proxy for organized depressions and monsoonal low-pressure systems causing catastrophic regional flooding."
+
+- id: "SOP-001"
+  title: "Squally Winds & Two-Wheeler / Cycling Safety Risk"
+  category: "outdoor_exercise"
+  severity: 3
+  type: "numeric"
+  applies_to:
+    - "cycling"
+    - "two_wheeler"
+    - "commute"
+  condition: "wind_speed_10m >= 35.0 or wind_gusts_10m >= 45.0"
+  advice: "High wind safety warning (sustained wind: {wind_speed_10m} km/h, peak gusts: {wind_gusts_10m} km/h). Riding a bicycle, scooter, or motorcycle in these conditions creates extreme lateral drift, instability near heavy vehicles, and collision hazard from flying debris. Avoid two-wheeled transit; postpone the trip or take enclosed 4-wheel transport. Policy: SOP-001."
+  rationale: "Crosswind gusts above 45 km/h critically compromise balance and lane tracking on two-wheeled vehicles."
+
+- id: "SOP-002"
+  title: "Peak Midday UV Radiation Hazard"
+  category: "outdoor_exercise"
+  severity: 3
+  type: "numeric"
+  time_window: [11, 16]
+  applies_to:
+    - "running"
+    - "cycling"
+    - "hiking"
+    - "outdoor_exercise"
+    - "general_outdoor"
+    - "any"
+  condition: "uv_index >= 8.0"
+  advice: "Very high UV radiation alert (UV index: {uv_index}) during peak solar hours (11:00-16:00). Direct sun exposure carries rapid risk of acute sunburn, photokeratitis, and cellular skin damage. Avoid unprotected strenuous outdoor exercise during this midday window. Reschedule workouts to early morning or after 16:00, or seek shade, wear UV-protective clothing, and apply broad-spectrum SPF 50+ sunscreen. Policy: SOP-002."
+  rationale: "UV index >= 8 causes acute cellular skin damage and sunburn in under 20 minutes of unprotected midday exposure."
+
+- id: "SOP-003"
+  title: "Severe Thunderstorm & Lightning Safety"
+  category: "general_outdoor"
+  severity: 4
+  type: "numeric"
+  scope: "global"
+  applies_to:
+    - "any"
+  condition: "weather_code in [95, 96, 99]"
+  advice: "DANGER - ACTIVE THUNDERSTORM / LIGHTNING: Thunderstorm activity is present or imminent (weather code: {weather_code}, wind gusts: {wind_gusts_10m} km/h). Direct lightning strikes and sudden severe squalls present a life-threatening danger. Immediately cease all outdoor activities, clear open grounds, water bodies, and sports fields, and seek shelter inside an enclosed building or metal-topped vehicle. Policy: SOP-003."
+  rationale: "Cloud-to-ground lightning strikes and severe downbursts make open-air exposure lethal during thunderstorms."
+
+- id: "SOP-004"
+  title: "Heavy Rainfall Travel & Transit Warning"
+  category: "travel"
+  severity: 3
+  type: "numeric"
+  applies_to:
+    - "travel"
+    - "driving"
+    - "commute"
+  condition: "precipitation_probability >= 70 and precipitation >= 5.0"
+  advice: "Heavy rainfall travel warning (current precipitation: {precipitation} mm/h, rain chance: {precipitation_probability}%). Road conditions present severe hydroplaning risks, reduced braking distance, and urban waterlogging. Delay non-essential road trips, check highway advisory bulletins before departure, reduce speeds by at least 25%, and keep double the standard following distance. Policy: SOP-004."
+  rationale: "Precipitation above 5 mm/h combined with >= 70% probability causes rapid road slickness and transit disruption."
+
+- id: "SOP-005"
+  title: "Vulnerable Groups Extreme Heat Stress (Children & Elderly)"
+  category: "vulnerable_groups"
+  severity: 3
+  type: "numeric"
+  applies_to:
+    - "child_outdoor"
+    - "elderly_outdoor"
+  condition: "apparent_temperature >= 38.0"
+  advice: "Extreme heat advisory for vulnerable family members (feels-like temperature: {apparent_temperature}°C, relative humidity: {relative_humidity_2m}%). Children and elderly individuals have lower thermoregulatory efficiency and are vulnerable to rapid heat exhaustion, dizziness, and heat stroke. Cancel playground visits or outdoor walks during the day, remain in cool shaded or air-conditioned rooms, and drink water regularly. Policy: SOP-005."
+  rationale: "Apparent temperatures exceeding 38°C overwhelm thermoregulation in children and seniors."
+
+- id: "SOP-006"
+  title: "Vulnerable Groups Cold Weather Exposure (Elderly)"
+  category: "vulnerable_groups"
+  severity: 2
+  type: "numeric"
+  applies_to:
+    - "elderly_outdoor"
+  condition: "temperature_2m <= 8.0"
+  advice: "Cold weather precaution for seniors (air temperature: {temperature_2m}°C, apparent temperature: {apparent_temperature}°C). Cold temperatures induce acute peripheral vasoconstriction, increasing blood pressure and cardiac strain, and elevating hypothermia risk. Avoid early morning strolls while temperatures are at their lowest. Wear layered thermal clothing, keep head and neck insulated, and opt for midday sunshine walks instead. Policy: SOP-006."
+  rationale: "Ambient temperatures <= 8°C significantly elevate cardiovascular strain and hypothermia susceptibility in seniors."
+
+- id: "SOP-007"
+  title: "Pet Walk Pavement Burn & Heat Warning"
+  category: "vulnerable_groups"
+  severity: 3
+  type: "numeric"
+  applies_to:
+    - "pet_walk"
+  condition: "temperature_2m >= 31.0 or apparent_temperature >= 34.0"
+  advice: "Hot pavement pet advisory (ambient temperature: {temperature_2m}°C, feels-like: {apparent_temperature}°C). Asphalt absorbs radiant solar heat and can exceed 55°C, causing third-degree paw burns and canine heatstroke within minutes. Walk dogs exclusively on grass surfaces during early morning or late evening, test the ground with your palm for 7 seconds first, and bring fresh water. Policy: SOP-007."
+  rationale: "Sun-exposed pavement reaches searing contact temperatures when ambient air exceeds 31°C."
+
+- id: "SOP-008"
+  title: "Dense Fog & Low Visibility Transit Advisory"
+  category: "travel"
+  severity: 2
+  type: "numeric"
+  applies_to:
+    - "travel"
+    - "driving"
+    - "commute"
+    - "cycling"
+  condition: "weather_code in [45, 48]"
+  advice: "Dense fog visibility caution (weather code: {weather_code}, humidity: {relative_humidity_2m}%). Sightlines are severely compromised, creating pile-up and navigation hazards. If travelling, use low-beam headlights or fog lamps, avoid hazardous overtaking, decrease cruising speed substantially, and wear high-visibility fluorescent attire if on foot or bike. Policy: SOP-008."
+  rationale: "WMO fog codes 45/48 restrict forward visibility below safe stopping distances at standard driving speeds."
+
+- id: "SOP-009"
+  title: "Strenuous Outdoor Exercise High Heat & Humidity Warning"
+  category: "outdoor_exercise"
+  severity: 3
+  type: "numeric"
+  applies_to:
+    - "running"
+    - "cycling"
+    - "hiking"
+    - "outdoor_exercise"
+  condition: "apparent_temperature >= 35.0 and relative_humidity_2m >= 60.0"
+  advice: "High heat and humidity workout warning (apparent temperature: {apparent_temperature}°C, relative humidity: {relative_humidity_2m}%). Elevated humidity severely inhibits sweat evaporation, causing rapid core body temperature escalation during vigorous exercise. Reduce training pace, shorten workout duration, consume electrolyte replenishment fluids, or shift cardio sessions indoors. Policy: SOP-009."
+  rationale: "Combined apparent temperature >= 35°C and relative humidity >= 60% causes rapid hyperthermia during intense cardio."
+
+- id: "SOP-010"
+  title: "Favorable Outdoor Exercise Conditions"
+  category: "outdoor_exercise"
+  severity: 1
+  type: "numeric"
+  applies_to:
+    - "running"
+    - "cycling"
+    - "hiking"
+    - "outdoor_exercise"
+  condition: "temperature_2m >= 15.0 and temperature_2m <= 26.0 and precipitation_probability < 20 and wind_speed_10m < 20.0"
+  advice: "Ideal conditions for outdoor exercise in {location_name} (temperature: {temperature_2m}°C, wind: {wind_speed_10m} km/h, rain probability: {precipitation_probability}%). No adverse weather safety restrictions apply. Maintain regular hydration, wear comfortable footwear, and enjoy your workout. Policy: SOP-010."
+  rationale: "Provides baseline clearance when temperature, wind, and precipitation parameters remain in optimal physiological ranges."
+
+- id: "SOP-011"
+  title: "Pleasant Weather for Picnic & Outdoor Leisure"
+  category: "general_outdoor"
+  severity: 1
+  type: "fuzzy"
+  applies_to:
+    - "picnic"
+    - "general_outdoor"
+  fuzzy_description: "user is planning a picnic, park gathering, or casual leisure activity outdoors"
+  soft_conditions:
+    - "precipitation_probability <= 25"
+    - "temperature_2m >= 18.0 and temperature_2m <= 30.0"
+    - "wind_speed_10m <= 25.0"
+    - "weather_code in [0, 1, 2, 3]"
+  advice: "Great day for a picnic and outdoor leisure (temperature: {temperature_2m}°C, rain probability: {precipitation_probability}%, wind: {wind_speed_10m} km/h). Weather conditions are pleasant, dry, and comfortable for relaxing outdoors or sharing a meal in the park. Policy: SOP-011."
+  rationale: "Composite comfort evaluation (mild temperature, minimal rain risk, gentle breeze, clear/partly cloudy skies) suitable for stationary leisure."
+
+- id: "SOP-012"
+  title: "Wet / Rainy Conditions Picnic Advisory"
+  category: "general_outdoor"
+  severity: 2
+  type: "numeric"
+  applies_to:
+    - "picnic"
+    - "general_outdoor"
+  condition: "precipitation_probability >= 40 or precipitation >= 1.0"
+  advice: "Wet weather caution for picnics and gatherings (rain chance: {precipitation_probability}%, precipitation: {precipitation} mm). Saturated ground and likely rain showers will make open-air dining wet and uncomfortable. We advise choosing a park with a covered gazebo, bringing waterproof tarps, or moving the gathering to an indoor location. Policy: SOP-012."
+  rationale: "Rain probability >= 40% or measurable precipitation renders open ground unsuitable for blankets and outdoor food."
+
+- id: "SOP-013"
+  title: "Calm Weather Baseline / No Warning Active"
+  category: "general_outdoor"
+  severity: 1
+  type: "numeric"
+  applies_to:
+    - "cycling"
+    - "two_wheeler"
+    - "running"
+    - "hiking"
+    - "outdoor_exercise"
+    - "travel"
+    - "driving"
+    - "commute"
+    - "child_outdoor"
+    - "elderly_outdoor"
+    - "pet_walk"
+    - "picnic"
+    - "general_outdoor"
+  condition: "wind_speed_10m < 35.0 and wind_gusts_10m < 45.0 and precipitation_probability < 70 and daily_precipitation_sum < 35.0 and weather_code not in [95, 96, 99]"
+  advice: "No policy warnings are triggered for {activity} in {location_name} today (temperature: {temperature_2m}°C, wind: {wind_speed_10m} km/h, peak gusts: {wind_gusts_10m} km/h, rain chance: {precipitation_probability}%, daily rain sum: {daily_precipitation_sum} mm). Current weather is within calm baseline thresholds. This isn't a guarantee of safety, so please check local conditions before departing. Policy: SOP-013."
+  rationale: "Provides baseline verification with live weather facts when no adverse safety warning threshold is triggered for a covered activity."
+
+- id: "SOP-014"
+  title: "High Wind Mountain & Ridge Hiking Advisory"
+  category: "outdoor_exercise"
+  severity: 2
+  type: "numeric"
+  applies_to:
+    - "hiking"
+  condition: "wind_speed_10m >= 28.0 or wind_gusts_10m >= 40.0"
+  advice: "Breezy conditions forecast for hiking (trail wind: {wind_speed_10m} km/h, gusts: {wind_gusts_10m} km/h). Exposed ridgelines, summits, and cliffside paths will experience severe wind acceleration. Stay away from unprotected drop-offs, pack wind-resistant layers, and secure loose gear on your pack. Policy: SOP-014."
+  rationale: "Elevated winds cause balance loss and increased windchill exposure on exposed trails and ridgelines."
+
+- id: "SOP-015"
+  title: "Favorable Highway & Transit Travel Conditions"
+  category: "travel"
+  severity: 1
+  type: "numeric"
+  applies_to:
+    - "travel"
+    - "driving"
+    - "commute"
+  condition: "precipitation_probability < 30 and precipitation < 1.0 and wind_speed_10m < 35.0 and weather_code not in [45, 48, 65, 82, 95, 96, 99]"
+  advice: "Travel conditions are favorable for your route in {location_name} today (rain chance: {precipitation_probability}%, wind speed: {wind_speed_10m} km/h, visibility clear). No active travel hazard alerts or road slickness warnings are in effect. Observe standard driving safety and speed regulations. Policy: SOP-015."
+  rationale: "Provides positive clearance for commuting and road transit when visibility, precipitation, and wind parameters are safe."
