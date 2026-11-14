@@ -12,6 +12,7 @@ Adheres strictly to the assignment specifications:
 """
 
 import requests
+import time
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -66,7 +67,7 @@ DAILY_FIELDS = [
 ]
 
 
-def geocode_city(city_name: str, timeout: int = 10) -> Dict[str, Any]:
+def geocode_city(city_name: str, timeout: int = 12) -> Dict[str, Any]:
     """
     Resolves a human city name to latitude, longitude, and display metadata.
     Returns the first matching result.
@@ -79,14 +80,24 @@ def geocode_city(city_name: str, timeout: int = 10) -> Dict[str, Any]:
     url = "https://geocoding-api.open-meteo.com/v1/search"
     params = {"name": cleaned_name, "count": 1, "language": "en", "format": "json"}
 
-    try:
-        response = requests.get(url, params=params, timeout=timeout)
-        response.raise_for_status()
-        data = response.json()
-    except requests.RequestException as exc:
-        raise GeocodingError(f"Network error during geocoding for '{cleaned_name}': {exc}") from exc
-    except ValueError as exc:
-        raise GeocodingError(f"Invalid JSON response from geocoding service: {exc}") from exc
+    data = None
+    last_exc = None
+    for attempt in range(2):
+        try:
+            response = requests.get(url, params=params, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            break
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt == 0:
+                time.sleep(0.5)
+                continue
+            raise GeocodingError(f"Network error during geocoding for '{cleaned_name}': {exc}") from exc
+        except ValueError as exc:
+            raise GeocodingError(f"Invalid JSON response from geocoding service: {exc}") from exc
+    if data is None and last_exc:
+        raise GeocodingError(f"Network error during geocoding for '{cleaned_name}': {last_exc}") from last_exc
 
     results = data.get("results")
     if not results or len(results) == 0:
@@ -102,7 +113,7 @@ def geocode_city(city_name: str, timeout: int = 10) -> Dict[str, Any]:
     }
 
 
-def fetch_raw_forecast(latitude: float, longitude: float, timeout: int = 10) -> Dict[str, Any]:
+def fetch_raw_forecast(latitude: float, longitude: float, timeout: int = 12) -> Dict[str, Any]:
     """
     Queries the Open-Meteo forecast endpoint for current, hourly, and daily metrics.
     Raises WeatherAPIError on failure.
@@ -118,14 +129,21 @@ def fetch_raw_forecast(latitude: float, longitude: float, timeout: int = 10) -> 
         "daily": ",".join(DAILY_FIELDS),
     }
 
-    try:
-        response = requests.get(url, params=params, timeout=timeout)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as exc:
-        raise WeatherAPIError(f"Failed to fetch forecast from Open-Meteo: {exc}") from exc
-    except ValueError as exc:
-        raise WeatherAPIError(f"Invalid JSON response from Open-Meteo forecast API: {exc}") from exc
+    last_exc = None
+    for attempt in range(2):
+        try:
+            response = requests.get(url, params=params, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt == 0:
+                time.sleep(0.5)
+                continue
+            raise WeatherAPIError(f"Failed to fetch forecast from Open-Meteo: {exc}") from exc
+        except ValueError as exc:
+            raise WeatherAPIError(f"Invalid JSON response from Open-Meteo forecast API: {exc}") from exc
+    raise WeatherAPIError(f"Failed to fetch forecast from Open-Meteo: {last_exc}") from last_exc
 
 
 def extract_weather_facts(

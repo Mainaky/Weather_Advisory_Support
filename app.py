@@ -130,6 +130,7 @@ with tab_chat:
                     other_sops = metadata.get("other_sops") or []
                     facts = metadata.get("weather_facts")
 
+                    err_msg = metadata.get("error")
                     if chosen_sop:
                         sev = chosen_sop.get("severity", 1)
                         sev_badge = {
@@ -155,10 +156,12 @@ with tab_chat:
                                 st.markdown(f"- `{osop.get('id')}`: **{osop.get('title')}** ({o_badge})")
                                 if osop.get("advice"):
                                     st.caption(f"  *Approved text: {osop.get('advice')[:120]}...*")
+                    elif err_msg:
+                        st.info(f"ℹ️ **Operational Notice:** {err_msg}")
                     else:
                         st.markdown("*Out-of-scope activity or unmapped topic. Returned standard honest boundary response.*")
 
-                    if facts:
+                    if facts and not err_msg:
                         st.markdown("---")
                         loc_title = facts.get("location_name") or "Queried Location"
                         st.markdown(f"**📊 Verified Weather Facts from Open-Meteo ({loc_title}):**")
@@ -203,6 +206,7 @@ with tab_chat:
 
                 # Show real-time trace expander
                 with st.expander("🔍 Why this answer? (Traceability & Policy Audit)"):
+                    err_msg = metadata.get("error")
                     if chosen_sop:
                         sev = chosen_sop.get("severity", 1)
                         sev_badge = {
@@ -228,10 +232,12 @@ with tab_chat:
                                 st.markdown(f"- `{osop.get('id')}`: **{osop.get('title')}** ({o_badge})")
                                 if osop.get("advice"):
                                     st.caption(f"  *Approved text: {osop.get('advice')[:120]}...*")
+                    elif err_msg:
+                        st.info(f"ℹ️ **Operational Notice:** {err_msg}")
                     else:
                         st.markdown("*Out-of-scope activity or unmapped topic. Returned standard honest boundary response.*")
 
-                    if facts:
+                    if facts and not err_msg:
                         st.markdown("---")
                         loc_title = facts.get("location_name") or "Queried Location"
                         st.markdown(f"**📊 Verified Weather Facts from Open-Meteo ({loc_title}):**")
@@ -258,7 +264,8 @@ with tab_chat:
                 "chosen_sop": chosen_sop,
                 "selection_reason": selection_reason,
                 "other_sops": other_sops,
-                "weather_facts": facts,
+                "weather_facts": facts if not result.get("error") else None,
+                "error": result.get("error"),
             }
         })
 

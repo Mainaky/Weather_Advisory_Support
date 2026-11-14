@@ -417,11 +417,14 @@ def resolve_location_node(state: AgentState) -> Dict[str, Any]:
     """
     Node 2: resolve_location
     Geocodes city name via weather.py. Sets error if missing or unresolvable.
+    Clears stale weather facts if location fails.
     """
     location = state.get("location")
     if not location or not location.strip():
         return {
-            "error": "MISSING_LOCATION: Please specify which city or location you are planning your activity in."
+            "error": "MISSING_LOCATION: Please specify which city or location you are planning your activity in.",
+            "resolved_coords": None,
+            "weather_facts": None,
         }
 
     try:
@@ -433,7 +436,9 @@ def resolve_location_node(state: AgentState) -> Dict[str, Any]:
         }
     except weather.GeocodingError as err:
         return {
-            "error": f"LOCATION_NOT_FOUND: I couldn't resolve the location '{location}'. Please check the city name and try again."
+            "error": f"LOCATION_NOT_FOUND: I couldn't resolve the location '{location}'. Please check the city name and try again.",
+            "resolved_coords": None,
+            "weather_facts": None,
         }
 
 
@@ -441,13 +446,17 @@ def fetch_weather_node(state: AgentState) -> Dict[str, Any]:
     """
     Node 3: fetch_weather
     Calls Open-Meteo forecast API and extracts verified facts for time_ref.
+    Clears stale weather facts if API call fails.
     """
     coords = state.get("resolved_coords")
     loc_name = state.get("location", "")
     time_ref = state.get("time_ref", "today")
 
     if not coords:
-        return {"error": "COORDINATES_MISSING: Coordinates not available for forecast query."}
+        return {
+            "error": "COORDINATES_MISSING: Coordinates not available for forecast query.",
+            "weather_facts": None,
+        }
 
     lat, lon = coords
     try:
@@ -459,7 +468,8 @@ def fetch_weather_node(state: AgentState) -> Dict[str, Any]:
         }
     except weather.WeatherAPIError as err:
         return {
-            "error": f"WEATHER_API_UNREACHABLE: {err}"
+            "error": f"WEATHER_API_UNREACHABLE: {err}",
+            "weather_facts": None,
         }
 
 
@@ -1035,12 +1045,17 @@ bot_graph = build_graph()
 def ask_bot(user_message: str, thread_id: str = "default_session", session_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Helper function to query the bot. Preserves session memory via thread_id.
+    Explicitly resets per-turn weather and SOP fields so stale facts never leak across turns.
     """
     initial_state: Dict[str, Any] = {
         "user_text": user_message,
+        "weather_facts": None,
+        "resolved_coords": None,
         "candidate_sops": [],
         "chosen_sop": None,
         "other_sops": [],
+        "selection_reason": None,
+        "audit_trail": None,
         "error": None,
         "reply": None,
     }
