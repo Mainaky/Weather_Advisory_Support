@@ -206,7 +206,7 @@ with tab_chat:
 
                 # Show real-time trace expander
                 with st.expander("🔍 Why this answer? (Traceability & Policy Audit)"):
-                    err_msg = metadata.get("error")
+                    err_msg = result.get("error")
                     if chosen_sop:
                         sev = chosen_sop.get("severity", 1)
                         sev_badge = {
@@ -268,6 +268,7 @@ with tab_chat:
                 "error": result.get("error"),
             }
         })
+        st.rerun()
 
 
 # ------------------------------------------------------------------------------
